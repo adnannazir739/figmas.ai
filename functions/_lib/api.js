@@ -1,6 +1,6 @@
 const SESSION_COOKIE = "fgms_session";
 const SESSION_DAYS = 14;
-const PBKDF2_ITERATIONS = 120000;
+const PBKDF2_ITERATIONS = 100000;
 
 export function json(data, status = 200, headers = {}) {
   return Response.json(data, {

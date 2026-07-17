@@ -240,7 +240,7 @@
         <form class="purchase-form" id="purchaseForm">
           <label>
             Account email
-            <input id="buyerEmail" type="email" placeholder="you@example.com" required />
+            <input id="buyerEmail" type="email" placeholder="Sign in first" readonly required />
           </label>
           <label>
             USDT amount transferred
@@ -259,7 +259,7 @@
             <strong id="tokenQuote">0 FGMS</strong>
           </div>
           <button class="primary-button full-width" type="submit">Verify transfer</button>
-          <p class="form-note">Your request will show as pending until the owner approves it in the dashboard.</p>
+          <p class="form-note" id="purchaseNote">Sign in before submitting a transfer. Your request will show as pending until the owner approves it in the dashboard.</p>
         </form>
       </section>
 
@@ -285,7 +285,7 @@
           </div>
           <div id="adminGate" class="admin-gate">
             <input id="adminCode" type="password" placeholder="Owner passcode" />
-            <small>Demo passcode lives in app.js. Replace this with real backend auth before launch.</small>
+            <small>Passcode is checked on the server through the Cloudflare ADMIN_PASSCODE variable.</small>
           </div>
           <div id="adminList" class="request-list locked">Owner dashboard locked.</div>
         </div>
@@ -304,14 +304,27 @@
     <div class="modal" id="authModal" aria-hidden="true">
       <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="authTitle">
         <button class="close-button" id="closeAuth" type="button" aria-label="Close">x</button>
-        <h2 id="authTitle">Create or sign in</h2>
-        <p>Use an email to save your demo presale allocation in this browser.</p>
+        <h2 id="authTitle">Account access</h2>
+        <p>Create an account or sign in to track your presale allocation.</p>
+        <div class="auth-tabs" role="tablist" aria-label="Account mode">
+          <button class="is-active" id="signupTab" type="button">Sign up</button>
+          <button id="signinTab" type="button">Sign in</button>
+        </div>
         <form id="authForm">
+          <label id="nameField">
+            Full name
+            <input id="authName" type="text" placeholder="Your name" autocomplete="name" />
+          </label>
           <label>
             Email address
-            <input id="authEmail" type="email" placeholder="you@example.com" required />
+            <input id="authEmail" type="email" placeholder="you@example.com" autocomplete="email" required />
           </label>
-          <button class="primary-button full-width" type="submit">Continue</button>
+          <label>
+            Password
+            <input id="authPassword" type="password" placeholder="Minimum 8 characters" autocomplete="current-password" required />
+          </label>
+          <button class="primary-button full-width" id="authSubmit" type="submit">Create account</button>
+          <p class="form-note" id="authMessage"></p>
         </form>
       </div>
     </div>

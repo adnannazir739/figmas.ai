@@ -43,6 +43,12 @@ input {
   font: inherit;
 }
 
+button:disabled,
+input:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .site-header {
   position: sticky;
   top: 0;
@@ -725,6 +731,29 @@ input:focus {
 .modal-card h2 {
   margin: 0;
   font-size: 2rem;
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 18px 0;
+}
+
+.auth-tabs button {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.035);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.auth-tabs button.is-active {
+  color: #031014;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--cyan), var(--mint));
 }
 
 .close-button {

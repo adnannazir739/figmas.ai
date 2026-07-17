@@ -1,0 +1,9 @@
+name = "figmas-ai"
+compatibility_date = "2026-07-17"
+pages_build_output_dir = "."
+
+[[d1_databases]]
+binding = "DB"
+database_name = "figmas-ai-db"
+database_id = "b710b201-b0a5-48cf-8a42-1c3bc63ce8f4"
+migrations_dir = "migrations"

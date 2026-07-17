@@ -1,7 +1,5 @@
 const CONFIG = {
   tokenSymbol: "FGMS",
-  totalSupply: 1_000_000_000,
-  launchCirculation: 100_000_000,
   stageCount: 8,
   stageLengthDays: 7,
   stageOnePrice: 0.01,
@@ -9,18 +7,7 @@ const CONFIG = {
   presaleStart: "2026-07-17T00:00:00+02:00",
   launchDate: "2026-10-01T00:00:00+02:00",
   walletAddress: "Add your wallet address in app.js",
-  network: "Add network, for example BSC BEP20 or TRC20",
-  adminPasscode: "FIGMAS-OWNER-2026"
-};
-
-const store = {
-  get(key, fallback) {
-    const value = localStorage.getItem(key);
-    return value ? JSON.parse(value) : fallback;
-  },
-  set(key, value) {
-    localStorage.setItem(key, JSON.stringify(value));
-  }
+  network: "Add network, for example BSC BEP20 or TRC20"
 };
 
 const currency = new Intl.NumberFormat("en-US", {
@@ -63,11 +50,19 @@ const elements = {
   txHash: document.querySelector("#txHash"),
   senderWallet: document.querySelector("#senderWallet"),
   tokenQuote: document.querySelector("#tokenQuote"),
+  purchaseNote: document.querySelector("#purchaseNote"),
   openAuth: document.querySelector("#openAuth"),
   closeAuth: document.querySelector("#closeAuth"),
   authModal: document.querySelector("#authModal"),
   authForm: document.querySelector("#authForm"),
+  authName: document.querySelector("#authName"),
   authEmail: document.querySelector("#authEmail"),
+  authPassword: document.querySelector("#authPassword"),
+  authSubmit: document.querySelector("#authSubmit"),
+  authMessage: document.querySelector("#authMessage"),
+  signupTab: document.querySelector("#signupTab"),
+  signinTab: document.querySelector("#signinTab"),
+  nameField: document.querySelector("#nameField"),
   userSummary: document.querySelector("#userSummary"),
   refreshUser: document.querySelector("#refreshUser"),
   unlockAdmin: document.querySelector("#unlockAdmin"),
@@ -75,8 +70,10 @@ const elements = {
   adminList: document.querySelector("#adminList")
 };
 
-let adminUnlocked = false;
 let activeSlide = 0;
+let authMode = "signup";
+let currentAccount = { user: null, summary: null, purchases: [] };
+let adminPasscode = "";
 
 function stagePrice(index) {
   return CONFIG.stageOnePrice * CONFIG.stageIncrease ** index;
@@ -106,6 +103,29 @@ function getCurrentStage(now = new Date()) {
 
 function formatPrice(value) {
   return currency.format(value);
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+async function api(path, options = {}) {
+  const response = await fetch(path, {
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    },
+    ...options
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Request failed.");
+  return data;
 }
 
 function renderStages() {
@@ -156,160 +176,182 @@ function renderQuote() {
   elements.tokenQuote.textContent = `${number.format(tokens)} ${CONFIG.tokenSymbol}`;
 }
 
-function getRequests() {
-  return store.get("figmas_requests", []);
+function setAuthMode(mode) {
+  authMode = mode;
+  elements.signupTab.classList.toggle("is-active", mode === "signup");
+  elements.signinTab.classList.toggle("is-active", mode === "signin");
+  elements.nameField.style.display = mode === "signup" ? "grid" : "none";
+  elements.authName.required = mode === "signup";
+  elements.authSubmit.textContent = mode === "signup" ? "Create account" : "Sign in";
+  elements.authMessage.textContent = "";
 }
 
-function saveRequests(requests) {
-  store.set("figmas_requests", requests);
-}
-
-function getCurrentUser() {
-  return store.get("figmas_user", null);
-}
-
-function setCurrentUser(email) {
-  store.set("figmas_user", { email, createdAt: new Date().toISOString() });
-  elements.buyerEmail.value = email;
-  elements.openAuth.textContent = email;
+function updateAccountUI() {
+  const user = currentAccount.user;
+  elements.openAuth.textContent = user ? "Sign out" : "Sign in";
+  elements.openAuth.title = user ? `Signed in as ${user.email}` : "Sign in";
+  elements.buyerEmail.value = user ? user.email : "";
+  elements.purchaseForm.querySelector("button[type='submit']").disabled = !user;
+  elements.purchaseNote.textContent = user
+    ? "Your request will be saved to your account and show as pending until owner approval."
+    : "Sign in before submitting a transfer. Your request will show as pending until the owner approves it.";
   renderUserPanel();
 }
 
+async function loadAccount() {
+  try {
+    currentAccount = await api("/api/auth/me", { method: "GET" });
+  } catch (error) {
+    currentAccount = { user: null, summary: null, purchases: [] };
+  }
+  updateAccountUI();
+}
+
 function renderUserPanel() {
-  const user = getCurrentUser();
+  const { user, summary, purchases } = currentAccount;
   if (!user) {
     elements.userSummary.className = "empty-state";
-    elements.userSummary.textContent = "Sign in or submit a purchase to see allocations.";
+    elements.userSummary.textContent = "Create an account or sign in to see your FGMS allocation.";
     return;
   }
 
-  const requests = getRequests().filter((request) => request.email.toLowerCase() === user.email.toLowerCase());
-  if (!requests.length) {
-    elements.userSummary.className = "empty-state";
-    elements.userSummary.textContent = `Signed in as ${user.email}. No purchase requests yet.`;
-    return;
-  }
-
-  const approvedTokens = requests
-    .filter((request) => request.status === "Approved")
-    .reduce((sum, request) => sum + request.tokens, 0);
-  const pendingTokens = requests
-    .filter((request) => request.status === "Pending")
-    .reduce((sum, request) => sum + request.tokens, 0);
+  const approvedTokens = Number(summary?.approved_tokens || 0);
+  const pendingTokens = Number(summary?.pending_tokens || 0);
+  const approvedUsdt = Number(summary?.approved_usdt || 0);
 
   elements.userSummary.className = "request-list";
   elements.userSummary.innerHTML = `
     <div class="request-card">
+      <strong>${escapeHtml(user.name)}</strong>
       <dl>
-        <dt>Email</dt><dd>${user.email}</dd>
+        <dt>Email</dt><dd>${escapeHtml(user.email)}</dd>
         <dt>Approved</dt><dd>${number.format(approvedTokens)} ${CONFIG.tokenSymbol}</dd>
         <dt>Pending</dt><dd>${number.format(pendingTokens)} ${CONFIG.tokenSymbol}</dd>
+        <dt>Paid approved</dt><dd>${number.format(approvedUsdt)} USDT</dd>
       </dl>
     </div>
-    ${requests.map(renderRequestCard).join("")}
+    ${
+      purchases.length
+        ? purchases.map(renderPurchaseCard).join("")
+        : '<div class="empty-state">No transfer requests yet.</div>'
+    }
   `;
 }
 
-function renderRequestCard(request) {
+function renderPurchaseCard(purchase) {
   return `
     <div class="request-card">
-      <strong>${request.status} transfer</strong>
+      <strong>${escapeHtml(purchase.status)} transfer</strong>
       <dl>
-        <dt>USDT</dt><dd>${number.format(request.usdt)} USDT</dd>
-        <dt>Tokens</dt><dd>${number.format(request.tokens)} ${CONFIG.tokenSymbol}</dd>
-        <dt>Price</dt><dd>${formatPrice(request.price)}</dd>
-        <dt>TX hash</dt><dd>${request.txHash}</dd>
-        <dt>Wallet</dt><dd>${request.senderWallet}</dd>
+        <dt>USDT</dt><dd>${number.format(purchase.usdt_amount)} USDT</dd>
+        <dt>Tokens</dt><dd>${number.format(purchase.token_amount)} ${escapeHtml(purchase.token_symbol)}</dd>
+        <dt>Price</dt><dd>${formatPrice(purchase.token_price)}</dd>
+        <dt>Stage</dt><dd>Stage ${purchase.stage_number}</dd>
+        <dt>TX hash</dt><dd>${escapeHtml(purchase.tx_hash)}</dd>
+        <dt>Wallet</dt><dd>${escapeHtml(purchase.sender_wallet)}</dd>
+        ${purchase.admin_note ? `<dt>Note</dt><dd>${escapeHtml(purchase.admin_note)}</dd>` : ""}
       </dl>
     </div>
   `;
 }
 
-function renderAdmin() {
-  if (!adminUnlocked) {
+async function renderAdmin() {
+  if (!adminPasscode) {
     elements.adminList.className = "request-list locked";
     elements.adminList.textContent = "Owner dashboard locked.";
     return;
   }
 
-  const requests = getRequests();
-  elements.adminList.className = "request-list";
-  if (!requests.length) {
-    elements.adminList.innerHTML = '<div class="empty-state">No transfer requests yet.</div>';
+  try {
+    const data = await api("/api/admin/purchases", {
+      method: "GET",
+      headers: { "X-Admin-Passcode": adminPasscode }
+    });
+
+    elements.adminList.className = "request-list";
+    elements.adminList.innerHTML = data.purchases.length
+      ? data.purchases.map(renderAdminCard).join("")
+      : '<div class="empty-state">No transfer requests yet.</div>';
+  } catch (error) {
+    elements.adminList.className = "request-list locked";
+    elements.adminList.textContent = error.message;
+  }
+}
+
+function renderAdminCard(purchase) {
+  return `
+    <div class="request-card">
+      <strong>${escapeHtml(purchase.name)} · ${escapeHtml(purchase.email)}</strong>
+      <dl>
+        <dt>Status</dt><dd>${escapeHtml(purchase.status)}</dd>
+        <dt>USDT</dt><dd>${number.format(purchase.usdt_amount)} USDT</dd>
+        <dt>Tokens</dt><dd>${number.format(purchase.token_amount)} ${escapeHtml(purchase.token_symbol)}</dd>
+        <dt>Stage</dt><dd>Stage ${purchase.stage_number}</dd>
+        <dt>TX hash</dt><dd>${escapeHtml(purchase.tx_hash)}</dd>
+        <dt>Wallet</dt><dd>${escapeHtml(purchase.sender_wallet)}</dd>
+      </dl>
+      <div class="request-actions">
+        <button class="approve-button" type="button" data-action="Approved" data-id="${escapeHtml(purchase.id)}">Approve</button>
+        <button class="reject-button" type="button" data-action="Rejected" data-id="${escapeHtml(purchase.id)}">Reject</button>
+      </div>
+    </div>
+  `;
+}
+
+async function handlePurchase(event) {
+  event.preventDefault();
+  if (!currentAccount.user) {
+    openModal();
     return;
   }
 
-  elements.adminList.innerHTML = requests
-    .map((request) => `
-      <div class="request-card">
-        <strong>${request.email}</strong>
-        <dl>
-          <dt>Status</dt><dd>${request.status}</dd>
-          <dt>USDT</dt><dd>${number.format(request.usdt)} USDT</dd>
-          <dt>Tokens</dt><dd>${number.format(request.tokens)} ${CONFIG.tokenSymbol}</dd>
-          <dt>Stage</dt><dd>Stage ${request.stage}</dd>
-          <dt>TX hash</dt><dd>${request.txHash}</dd>
-          <dt>Wallet</dt><dd>${request.senderWallet}</dd>
-        </dl>
-        <div class="request-actions">
-          <button class="approve-button" type="button" data-action="approve" data-id="${request.id}">Approve</button>
-          <button class="reject-button" type="button" data-action="reject" data-id="${request.id}">Reject</button>
-        </div>
-      </div>
-    `)
-    .join("");
-}
-
-function handlePurchase(event) {
-  event.preventDefault();
-  const email = elements.buyerEmail.value.trim();
-  const usdt = Number(elements.usdtAmount.value);
-  const txHash = elements.txHash.value.trim();
-  const senderWallet = elements.senderWallet.value.trim();
-  const { stage } = getCurrentStage();
-
-  if (!email || !usdt || !txHash || !senderWallet) return;
-
-  const request = {
-    id: crypto.randomUUID(),
-    email,
-    usdt,
-    txHash,
-    senderWallet,
-    stage: stage.number,
-    price: stage.price,
-    tokens: usdt / stage.price,
-    status: "Pending",
-    createdAt: new Date().toISOString()
+  const payload = {
+    usdtAmount: Number(elements.usdtAmount.value),
+    txHash: elements.txHash.value.trim(),
+    senderWallet: elements.senderWallet.value.trim()
   };
 
-  saveRequests([request, ...getRequests()]);
-  setCurrentUser(email);
-  elements.purchaseForm.reset();
-  renderQuote();
-  renderAdmin();
-  alert("Verification pending. The owner can now approve this transfer from the dashboard.");
+  try {
+    elements.purchaseForm.querySelector("button[type='submit']").disabled = true;
+    await api("/api/purchases", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    elements.purchaseForm.reset();
+    renderQuote();
+    await loadAccount();
+    await renderAdmin();
+    alert("Verification pending. Your transfer request was saved to your account.");
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    updateAccountUI();
+  }
 }
 
-function handleAdminAction(event) {
+async function handleAdminAction(event) {
   const button = event.target.closest("button[data-action]");
-  if (!button) return;
-  const requests = getRequests().map((request) => {
-    if (request.id !== button.dataset.id) return request;
-    return {
-      ...request,
-      status: button.dataset.action === "approve" ? "Approved" : "Rejected",
-      reviewedAt: new Date().toISOString()
-    };
-  });
-  saveRequests(requests);
-  renderAdmin();
-  renderUserPanel();
+  if (!button || !adminPasscode) return;
+
+  try {
+    button.disabled = true;
+    await api("/api/admin/review", {
+      method: "POST",
+      headers: { "X-Admin-Passcode": adminPasscode },
+      body: JSON.stringify({
+        purchaseId: button.dataset.id,
+        action: button.dataset.action
+      })
+    });
+    await renderAdmin();
+    await loadAccount();
+  } catch (error) {
+    alert(error.message);
+    button.disabled = false;
+  }
 }
 
 function openModal() {
-  const user = getCurrentUser();
-  elements.authEmail.value = user?.email || "";
   elements.authModal.classList.add("is-open");
   elements.authModal.setAttribute("aria-hidden", "false");
   elements.authEmail.focus();
@@ -320,23 +362,50 @@ function closeModal() {
   elements.authModal.setAttribute("aria-hidden", "true");
 }
 
-function init() {
+async function handleAuth(event) {
+  event.preventDefault();
+  const payload = {
+    name: elements.authName.value.trim(),
+    email: elements.authEmail.value.trim(),
+    password: elements.authPassword.value
+  };
+  const endpoint = authMode === "signup" ? "/api/auth/signup" : "/api/auth/signin";
+
+  try {
+    elements.authSubmit.disabled = true;
+    elements.authMessage.textContent = authMode === "signup" ? "Creating account..." : "Signing in...";
+    await api(endpoint, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    elements.authForm.reset();
+    closeModal();
+    await loadAccount();
+  } catch (error) {
+    elements.authMessage.textContent = error.message;
+  } finally {
+    elements.authSubmit.disabled = false;
+  }
+}
+
+async function signOut() {
+  try {
+    await api("/api/auth/signout", { method: "POST", body: "{}" });
+  } finally {
+    currentAccount = { user: null, summary: null, purchases: [] };
+    updateAccountUI();
+  }
+}
+
+function initStaticUI() {
   const finalPresalePrice = stagePrice(CONFIG.stageCount - 1);
   elements.finalPrice.textContent = formatPrice(finalPresalePrice);
   elements.launchPriceText.textContent = formatPrice(finalPresalePrice);
   elements.projectWallet.textContent = CONFIG.walletAddress;
   elements.projectNetwork.textContent = `Network: ${CONFIG.network}`;
 
-  const user = getCurrentUser();
-  if (user) {
-    elements.buyerEmail.value = user.email;
-    elements.openAuth.textContent = user.email;
-  }
-
   renderStages();
   updateCountdown();
-  renderUserPanel();
-  renderAdmin();
 
   setInterval(updateCountdown, 1000);
   setInterval(renderStages, 60000);
@@ -345,7 +414,9 @@ function init() {
     elements.slides.forEach((slide, index) => slide.classList.toggle("is-active", index === activeSlide));
     elements.slideDots.forEach((dot, index) => dot.classList.toggle("is-active", index === activeSlide));
   }, 6200);
+}
 
+function attachEvents() {
   elements.usdtAmount.addEventListener("input", renderQuote);
   elements.purchaseForm.addEventListener("submit", handlePurchase);
   elements.copyWallet.addEventListener("click", async () => {
@@ -355,26 +426,29 @@ function init() {
       elements.copyWallet.textContent = "Copy";
     }, 1400);
   });
-  elements.openAuth.addEventListener("click", openModal);
+  elements.openAuth.addEventListener("click", () => {
+    if (currentAccount.user) {
+      signOut();
+      return;
+    }
+    openModal();
+  });
   elements.closeAuth.addEventListener("click", closeModal);
   elements.authModal.addEventListener("click", (event) => {
     if (event.target === elements.authModal) closeModal();
   });
-  elements.authForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    setCurrentUser(elements.authEmail.value.trim());
-    closeModal();
-  });
-  elements.refreshUser.addEventListener("click", renderUserPanel);
-  elements.unlockAdmin.addEventListener("click", () => {
-    if (elements.adminCode.value === CONFIG.adminPasscode) {
-      adminUnlocked = true;
-      renderAdmin();
-      return;
-    }
-    alert("Invalid owner passcode.");
+  elements.signupTab.addEventListener("click", () => setAuthMode("signup"));
+  elements.signinTab.addEventListener("click", () => setAuthMode("signin"));
+  elements.authForm.addEventListener("submit", handleAuth);
+  elements.refreshUser.addEventListener("click", loadAccount);
+  elements.unlockAdmin.addEventListener("click", async () => {
+    adminPasscode = elements.adminCode.value.trim();
+    await renderAdmin();
   });
   elements.adminList.addEventListener("click", handleAdminAction);
 }
 
-init();
+initStaticUI();
+attachEvents();
+setAuthMode("signup");
+loadAccount();

@@ -29,6 +29,7 @@
         <a href="#buy">Buy</a>
         <a href="#contact">Contact</a>
       </nav>
+      <a class="balance-chip" id="balanceChip" href="#userPanel">0 FGMS</a>
       <button class="ghost-button" id="openAuth">Sign in</button>
     </header>
 
@@ -72,15 +73,15 @@
       <section class="ticker-band" aria-label="Project highlights">
         <div>
           <span>Total supply</span>
-          <strong>1,000,000,000 FGMS</strong>
+          <strong>1B FGMS</strong>
         </div>
         <div>
           <span>Launch circulation</span>
-          <strong>100,000,000 FGMS</strong>
+          <strong>100M FGMS</strong>
         </div>
         <div>
-          <span>Launch date</span>
-          <strong>October 1, 2026</strong>
+          <span>Launch liquidity</span>
+          <strong>$100M</strong>
         </div>
         <div>
           <span>Final presale price</span>
@@ -135,8 +136,8 @@
           <h2>Supply designed for launch liquidity and long unlock discipline.</h2>
           <p>
             Total supply is fixed at 1B FGMS. Only 100M FGMS unlocks at launch,
-            including all presale investor tokens. The next major unlock happens
-            six months after launch.
+            including all presale investor tokens. Launch liquidity is planned with
+            a $100M fund allocation, and the next major unlock happens six months after launch.
           </p>
         </div>
         <div class="tokenomics-grid">
@@ -146,19 +147,19 @@
             <p>Fixed maximum FGMS token supply.</p>
           </div>
           <div class="metric-card">
-            <span>Launch unlock</span>
+            <span>Launch circulation</span>
             <strong>100M</strong>
             <p>Initial circulating supply on October 1, 2026.</p>
+          </div>
+          <div class="metric-card">
+            <span>Launch liquidity</span>
+            <strong>$100M</strong>
+            <p>Planned liquidity and market support fund at launch.</p>
           </div>
           <div class="metric-card">
             <span>Six-month unlock</span>
             <strong>100M</strong>
             <p>10% of supply split equally among investors, funding providers, team, and market.</p>
-          </div>
-          <div class="metric-card">
-            <span>Monthly unlock</span>
-            <strong>5M</strong>
-            <p>0.5% of total supply per month after the six-month unlock until full supply is released.</p>
           </div>
         </div>
       </section>
@@ -220,6 +221,25 @@
         </p>
       </section>
 
+      <section class="section exchanges-section">
+        <div class="section-heading">
+          <p class="eyebrow">Launch targets</p>
+          <h2>Planned discovery and exchange launch venues.</h2>
+          <p>
+            Figmas AI launch targets include Binance Alpha, Bitget, CoinGecko, MEXC,
+            Bybit, and Coinbase, subject to each platform's approval process.
+          </p>
+        </div>
+        <div class="exchange-grid" aria-label="Planned exchange logos">
+          <div class="exchange-logo binance"><span>Binance</span><strong>Alpha</strong></div>
+          <div class="exchange-logo bitget"><span>Bitget</span></div>
+          <div class="exchange-logo coingecko"><span>CoinGecko</span></div>
+          <div class="exchange-logo mexc"><span>MEXC</span></div>
+          <div class="exchange-logo bybit"><span>Bybit</span></div>
+          <div class="exchange-logo coinbase"><span>Coinbase</span></div>
+        </div>
+      </section>
+
       <section class="section buy-section" id="buy">
         <div>
           <p class="eyebrow">Manual presale purchase</p>
@@ -273,21 +293,6 @@
             <button class="ghost-button" id="refreshUser" type="button">Refresh</button>
           </div>
           <div id="userSummary" class="empty-state">Sign in or submit a purchase to see allocations.</div>
-        </div>
-
-        <div class="panel" id="admin">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">Owner dashboard</p>
-              <h2>Approve manual transfers</h2>
-            </div>
-            <button class="ghost-button" id="unlockAdmin" type="button">Unlock</button>
-          </div>
-          <div id="adminGate" class="admin-gate">
-            <input id="adminCode" type="password" placeholder="Owner passcode" />
-            <small>Passcode is checked on the server through the Cloudflare ADMIN_PASSCODE variable.</small>
-          </div>
-          <div id="adminList" class="request-list locked">Owner dashboard locked.</div>
         </div>
       </section>
 

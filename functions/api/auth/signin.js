@@ -28,6 +28,10 @@ export async function onRequestPost({ request, env }) {
       return json({ error: "Invalid email or password." }, 401);
     }
 
+    if (!user.email_verified_at) {
+      return json({ error: "Please confirm your email before signing in.", requiresVerification: true }, 403);
+    }
+
     const session = await createSession(env, user.id);
     return json(
       { user: { id: user.id, email: user.email, name: user.name } },

@@ -1,6 +1,7 @@
 const SESSION_COOKIE = "fgms_session";
 const SESSION_DAYS = 14;
 const PBKDF2_ITERATIONS = 100000;
+const VERIFICATION_HOURS = 24;
 
 export function json(data, status = 200, headers = {}) {
   return Response.json(data, {
@@ -106,6 +107,53 @@ export async function createSession(env, userId) {
   return { token, expiresAt };
 }
 
+export async function createEmailVerification(env, userId) {
+  const db = requireDb(env);
+  const token = randomToken();
+  const tokenHash = await sha256(token);
+  const expiresAt = new Date(Date.now() + VERIFICATION_HOURS * 3600000);
+  await db
+    .prepare(
+      `INSERT INTO email_verification_tokens (id, user_id, token_hash, expires_at)
+       VALUES (?, ?, ?, ?)`
+    )
+    .bind(crypto.randomUUID(), userId, tokenHash, expiresAt.toISOString())
+    .run();
+  return { token, expiresAt };
+}
+
+export async function sendVerificationEmail(env, request, user, token) {
+  const url = new URL(request.url);
+  const verifyUrl = `${url.origin}/api/auth/verify?token=${encodeURIComponent(token)}`;
+  const fromEmail = env.EMAIL_FROM || "contact@figmas.ai";
+
+  if (!env.EMAIL) {
+    return {
+      sent: false,
+      verifyUrl,
+      reason: "Missing Cloudflare Email Sending binding named EMAIL."
+    };
+  }
+
+  await env.EMAIL.send({
+    to: user.email,
+    from: { email: fromEmail, name: "Figmas AI" },
+    subject: "Confirm your Figmas AI account",
+    text: `Welcome to Figmas AI.\n\nConfirm your account here:\n${verifyUrl}\n\nThis link expires in 24 hours.`,
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#0b161b">
+        <h2>Confirm your Figmas AI account</h2>
+        <p>Welcome to Figmas AI. Confirm your email to activate your presale account.</p>
+        <p><a href="${verifyUrl}" style="display:inline-block;background:#28e7ff;color:#031014;padding:12px 18px;border-radius:8px;font-weight:700;text-decoration:none">Confirm email</a></p>
+        <p>If the button does not work, open this link:</p>
+        <p>${verifyUrl}</p>
+      </div>
+    `
+  });
+
+  return { sent: true, verifyUrl: null };
+}
+
 export async function getCurrentUser(request, env) {
   const db = requireDb(env);
   const token = getCookie(request, SESSION_COOKIE);
@@ -113,7 +161,7 @@ export async function getCurrentUser(request, env) {
   const tokenHash = await sha256(token);
   return await db
     .prepare(
-      `SELECT users.id, users.email, users.name, users.created_at
+      `SELECT users.id, users.email, users.name, users.email_verified_at, users.created_at
        FROM sessions
        JOIN users ON users.id = sessions.user_id
        WHERE sessions.token_hash = ? AND sessions.expires_at > datetime('now')

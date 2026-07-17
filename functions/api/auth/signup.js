@@ -1,5 +1,5 @@
 import {
-  createSession,
+  createEmailVerification,
   hashPassword,
   isValidEmail,
   json,
@@ -8,7 +8,7 @@ import {
   readJson,
   requireDb,
   safeName,
-  sessionCookie
+  sendVerificationEmail
 } from "../../_lib/api.js";
 
 export async function onRequestPost({ request, env }) {
@@ -37,11 +37,19 @@ export async function onRequestPost({ request, env }) {
       .bind(userId, email, name, passwordHash, salt)
       .run();
 
-    const session = await createSession(env, userId);
+    const verification = await createEmailVerification(env, userId);
+    const emailResult = await sendVerificationEmail(env, request, { email, name }, verification.token);
     return json(
-      { user: { id: userId, email, name } },
-      201,
-      { "Set-Cookie": sessionCookie(session.token, session.expiresAt) }
+      {
+        ok: true,
+        requiresVerification: true,
+        emailSent: emailResult.sent,
+        verificationUrl: emailResult.verifyUrl,
+        message: emailResult.sent
+          ? "Account created. Check your email to confirm your account."
+          : emailResult.reason
+      },
+      201
     );
   } catch (error) {
     return json({ error: error.message || "Signup failed." }, 500);

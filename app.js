@@ -44,6 +44,7 @@ const elements = {
   projectWallet: document.querySelector("#projectWallet"),
   projectNetwork: document.querySelector("#projectNetwork"),
   copyWallet: document.querySelector("#copyWallet"),
+  balanceChip: document.querySelector("#balanceChip"),
   purchaseForm: document.querySelector("#purchaseForm"),
   buyerEmail: document.querySelector("#buyerEmail"),
   usdtAmount: document.querySelector("#usdtAmount"),
@@ -64,16 +65,12 @@ const elements = {
   signinTab: document.querySelector("#signinTab"),
   nameField: document.querySelector("#nameField"),
   userSummary: document.querySelector("#userSummary"),
-  refreshUser: document.querySelector("#refreshUser"),
-  unlockAdmin: document.querySelector("#unlockAdmin"),
-  adminCode: document.querySelector("#adminCode"),
-  adminList: document.querySelector("#adminList")
+  refreshUser: document.querySelector("#refreshUser")
 };
 
 let activeSlide = 0;
 let authMode = "signup";
 let currentAccount = { user: null, summary: null, purchases: [] };
-let adminPasscode = "";
 
 function stagePrice(index) {
   return CONFIG.stageOnePrice * CONFIG.stageIncrease ** index;
@@ -188,8 +185,10 @@ function setAuthMode(mode) {
 
 function updateAccountUI() {
   const user = currentAccount.user;
+  const approvedTokens = Number(currentAccount.summary?.approved_tokens || 0);
   elements.openAuth.textContent = user ? "Sign out" : "Sign in";
   elements.openAuth.title = user ? `Signed in as ${user.email}` : "Sign in";
+  elements.balanceChip.textContent = `${number.format(approvedTokens)} ${CONFIG.tokenSymbol}`;
   elements.buyerEmail.value = user ? user.email : "";
   elements.purchaseForm.querySelector("button[type='submit']").disabled = !user;
   elements.purchaseNote.textContent = user
@@ -255,49 +254,6 @@ function renderPurchaseCard(purchase) {
   `;
 }
 
-async function renderAdmin() {
-  if (!adminPasscode) {
-    elements.adminList.className = "request-list locked";
-    elements.adminList.textContent = "Owner dashboard locked.";
-    return;
-  }
-
-  try {
-    const data = await api("/api/admin/purchases", {
-      method: "GET",
-      headers: { "X-Admin-Passcode": adminPasscode }
-    });
-
-    elements.adminList.className = "request-list";
-    elements.adminList.innerHTML = data.purchases.length
-      ? data.purchases.map(renderAdminCard).join("")
-      : '<div class="empty-state">No transfer requests yet.</div>';
-  } catch (error) {
-    elements.adminList.className = "request-list locked";
-    elements.adminList.textContent = error.message;
-  }
-}
-
-function renderAdminCard(purchase) {
-  return `
-    <div class="request-card">
-      <strong>${escapeHtml(purchase.name)} · ${escapeHtml(purchase.email)}</strong>
-      <dl>
-        <dt>Status</dt><dd>${escapeHtml(purchase.status)}</dd>
-        <dt>USDT</dt><dd>${number.format(purchase.usdt_amount)} USDT</dd>
-        <dt>Tokens</dt><dd>${number.format(purchase.token_amount)} ${escapeHtml(purchase.token_symbol)}</dd>
-        <dt>Stage</dt><dd>Stage ${purchase.stage_number}</dd>
-        <dt>TX hash</dt><dd>${escapeHtml(purchase.tx_hash)}</dd>
-        <dt>Wallet</dt><dd>${escapeHtml(purchase.sender_wallet)}</dd>
-      </dl>
-      <div class="request-actions">
-        <button class="approve-button" type="button" data-action="Approved" data-id="${escapeHtml(purchase.id)}">Approve</button>
-        <button class="reject-button" type="button" data-action="Rejected" data-id="${escapeHtml(purchase.id)}">Reject</button>
-      </div>
-    </div>
-  `;
-}
-
 async function handlePurchase(event) {
   event.preventDefault();
   if (!currentAccount.user) {
@@ -320,34 +276,11 @@ async function handlePurchase(event) {
     elements.purchaseForm.reset();
     renderQuote();
     await loadAccount();
-    await renderAdmin();
     alert("Verification pending. Your transfer request was saved to your account.");
   } catch (error) {
     alert(error.message);
   } finally {
     updateAccountUI();
-  }
-}
-
-async function handleAdminAction(event) {
-  const button = event.target.closest("button[data-action]");
-  if (!button || !adminPasscode) return;
-
-  try {
-    button.disabled = true;
-    await api("/api/admin/review", {
-      method: "POST",
-      headers: { "X-Admin-Passcode": adminPasscode },
-      body: JSON.stringify({
-        purchaseId: button.dataset.id,
-        action: button.dataset.action
-      })
-    });
-    await renderAdmin();
-    await loadAccount();
-  } catch (error) {
-    alert(error.message);
-    button.disabled = false;
   }
 }
 
@@ -374,10 +307,18 @@ async function handleAuth(event) {
   try {
     elements.authSubmit.disabled = true;
     elements.authMessage.textContent = authMode === "signup" ? "Creating account..." : "Signing in...";
-    await api(endpoint, {
+    const result = await api(endpoint, {
       method: "POST",
       body: JSON.stringify(payload)
     });
+    if (authMode === "signup") {
+      setAuthMode("signin");
+      elements.authMessage.innerHTML = result.verificationUrl
+        ? `${escapeHtml(result.message)}<br><a href="${escapeHtml(result.verificationUrl)}">Open verification link</a>`
+        : escapeHtml(result.message || "Account created. Check your email to confirm, then sign in.");
+      elements.authPassword.value = "";
+      return;
+    }
     elements.authForm.reset();
     closeModal();
     await loadAccount();
@@ -441,14 +382,12 @@ function attachEvents() {
   elements.signinTab.addEventListener("click", () => setAuthMode("signin"));
   elements.authForm.addEventListener("submit", handleAuth);
   elements.refreshUser.addEventListener("click", loadAccount);
-  elements.unlockAdmin.addEventListener("click", async () => {
-    adminPasscode = elements.adminCode.value.trim();
-    await renderAdmin();
-  });
-  elements.adminList.addEventListener("click", handleAdminAction);
 }
 
 initStaticUI();
 attachEvents();
 setAuthMode("signup");
+if (new URLSearchParams(window.location.search).get("verified") === "1") {
+  setTimeout(() => alert("Email verified. You are signed in."), 250);
+}
 loadAccount();

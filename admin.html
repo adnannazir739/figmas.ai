@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Figmas AI Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="Figmas AI home">
+        <img src="assets/figmas-coin.png" alt="" />
+        <span>Figmas AI Admin</span>
+      </a>
+      <nav class="nav-links" aria-label="Admin navigation">
+        <a href="#users">Users</a>
+        <a href="#transfers">Transfers</a>
+        <a href="/">Website</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="section admin-hero">
+        <div class="section-heading">
+          <p class="eyebrow">Restricted</p>
+          <h1>Owner dashboard</h1>
+          <p>Review registered users, email verification status, token balances, and manual USDT transfer approvals.</p>
+        </div>
+        <form class="purchase-form admin-login" id="adminLogin">
+          <label>
+            Owner passcode
+            <input id="adminCode" type="password" placeholder="Enter ADMIN_PASSCODE value" required />
+          </label>
+          <button class="primary-button full-width" type="submit">Unlock dashboard</button>
+          <p class="form-note" id="adminMessage">This page uses the server-side ADMIN_PASSCODE variable.</p>
+        </form>
+      </section>
+
+      <section class="section dashboard-section" id="users">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Users</p>
+              <h2>Registered accounts</h2>
+            </div>
+            <button class="ghost-button" id="refreshUsers" type="button">Refresh</button>
+          </div>
+          <div id="usersList" class="empty-state">Unlock dashboard to load users.</div>
+        </div>
+      </section>
+
+      <section class="section dashboard-section" id="transfers">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Transfers</p>
+              <h2>Coin approval requests</h2>
+            </div>
+            <button class="ghost-button" id="refreshPurchases" type="button">Refresh</button>
+          </div>
+          <div id="purchaseList" class="empty-state">Unlock dashboard to load transfer requests.</div>
+        </div>
+      </section>
+    </main>
+
+    <script src="admin.js"></script>
+  </body>
+</html>

@@ -93,7 +93,8 @@ input:disabled {
 
 .ghost-button,
 .secondary-button,
-.primary-button {
+.primary-button,
+.balance-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -105,9 +106,16 @@ input:disabled {
 }
 
 .ghost-button,
-.secondary-button {
+.secondary-button,
+.balance-chip {
   color: var(--text);
   background: rgba(255, 255, 255, 0.03);
+}
+
+.balance-chip {
+  color: var(--mint);
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .primary-button {
@@ -459,7 +467,8 @@ p {
 }
 
 .tokenomics-grid,
-.whitepaper-grid {
+.whitepaper-grid,
+.exchange-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
@@ -512,6 +521,43 @@ p {
 .whitepaper-grid article span {
   color: var(--cyan);
   font-weight: 900;
+}
+
+.exchange-grid {
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+}
+
+.exchange-logo {
+  display: grid;
+  place-items: center;
+  min-height: 112px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.035);
+  text-align: center;
+  font-family: "Space Grotesk", Inter, sans-serif;
+  font-weight: 800;
+}
+
+.exchange-logo span {
+  font-size: 1.12rem;
+}
+
+.exchange-logo strong {
+  color: var(--cyan);
+  font-size: 0.82rem;
+}
+
+.binance { color: #f3ba2f; }
+.bitget { color: #28e7ff; }
+.coingecko { color: #8dc63f; }
+.mexc { color: #4d8dff; }
+.bybit { color: #f7c546; }
+.coinbase { color: #6da2ff; }
+
+.dashboard-section {
+  grid-template-columns: 1fr;
 }
 
 .compliance-note,
@@ -821,7 +867,8 @@ input:focus {
   }
 
   .tokenomics-grid,
-  .whitepaper-grid {
+  .whitepaper-grid,
+  .exchange-grid {
     grid-template-columns: 1fr;
   }
 

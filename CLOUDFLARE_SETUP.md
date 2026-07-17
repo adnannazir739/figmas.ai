@@ -46,7 +46,28 @@ ADMIN_PASSCODE
 
 Set it to a strong private passcode. The frontend sends your typed passcode to the admin API, but the real value is checked server-side.
 
-## 5. Push and Redeploy
+## 5. Optional: Enable Real Email Confirmation
+
+The code requires email verification. If Cloudflare Email Sending is not configured yet, signup will show a temporary verification link for testing.
+
+To send real confirmation emails:
+
+1. Enable Cloudflare Email Sending for `figmas.ai`.
+2. Add a Pages email sending binding named:
+
+```text
+EMAIL
+```
+
+3. Add this optional variable:
+
+```text
+EMAIL_FROM=contact@figmas.ai
+```
+
+The sender domain must be approved in Cloudflare Email Sending before production email will send.
+
+## 6. Push and Redeploy
 
 ```powershell
 git add .
